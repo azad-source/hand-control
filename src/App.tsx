@@ -82,6 +82,33 @@ function App() {
     }
   }, []);
 
+  const simulateClickOnCanvas = (
+    canvas: HTMLCanvasElement,
+    x: number,
+    y: number
+  ) => {
+    if (canvasRef.current) canvasRef.current.style.zIndex = "-1";
+
+    const rect = canvas.getBoundingClientRect();
+
+    // Корректируем координаты относительно окна браузера
+    const canvasX = rect.left + x + canvasWidth / 2;
+    const canvasY = rect.top + y + canvasHeight / 2;
+
+    // Создаем новое событие клика
+    const clickEvent = new MouseEvent("click", {
+      clientX: canvasX,
+      clientY: canvasY,
+      bubbles: true, // событие должно всплывать
+      cancelable: true,
+    });
+
+    // Находим элемент на странице, на который должен быть совершен клик
+    document.elementFromPoint(canvasX, canvasY)?.dispatchEvent(clickEvent);
+
+    if (canvasRef.current) canvasRef.current.style.zIndex = "unset";
+  };
+
   useEffect(() => {
     if (!start) return;
 
@@ -119,8 +146,14 @@ function App() {
             const clampedX = Math.min(Math.max(x, cursorXmin), cursorXmax);
             const clampedY = Math.min(Math.max(y, cursorYmin), cursorYmax);
 
+            const isAction = isThumbTouchingIndex(hands);
+
             const newPos = lerpPosition(clampedX, clampedY);
-            const color = isThumbTouchingIndex(hands) ? "red" : "green";
+            const color = isAction ? "red" : "green";
+
+            if (isAction && canvasRef.current) {
+              simulateClickOnCanvas(canvasRef.current, newPos.x, newPos.y);
+            }
 
             drawCursor(newPos.x, newPos.y, color);
           }
@@ -188,12 +221,17 @@ function App() {
           ></video>
           <pre>{JSON.stringify(cursorParams, null, 2)}</pre>
         </div>
-        <canvas
-          ref={canvasRef}
-          width={canvasWidth}
-          height={canvasHeight}
-          className={styles.canvas}
-        />
+        <div className={styles.canvasWrapper}>
+          <div className={styles.targetContent}>
+            <button onClick={() => alert("clicked!")}>Click Me</button>
+          </div>
+          <canvas
+            ref={canvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
+            className={styles.canvas}
+          />
+        </div>
       </div>
     </div>
   );

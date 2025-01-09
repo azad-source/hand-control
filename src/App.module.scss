@@ -16,10 +16,23 @@
       flex-grow: 1;
     }
 
-    .canvas {
-      height: 100%;
+    .canvasWrapper {
       box-sizing: border-box;
       border: 2px solid rgb(120, 37, 37);
+      position: relative;
+
+      .canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        box-sizing: border-box;
+        background-color: transparent;
+      }
+
+      .targetContent {
+        width: 1024px;
+      }
     }
   }
 }
