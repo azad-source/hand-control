@@ -5,7 +5,10 @@ export class Camera {
     this.video = videoElm || <HTMLVideoElement>document.getElementById("video");
   }
 
-  static async setupCamera(videoElm?: HTMLVideoElement) {
+  static async setupCamera(
+    videoElm?: HTMLVideoElement,
+    size?: { x: number; y: number }
+  ) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error(
         "Browser API navigator.mediaDevices.getUserMedia not available"
@@ -16,9 +19,9 @@ export class Camera {
       audio: false,
       video: {
         facingMode: "user",
-        width: 640,
-        height: 480,
-        frameRate: { ideal: 30 },
+        width: size?.x || 640,
+        height: size?.y || 480,
+        frameRate: { ideal: 25 },
       },
     };
 

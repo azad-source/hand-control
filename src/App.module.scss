@@ -1,0 +1,25 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+
+  .content {
+    height: 100%;
+    display: flex;
+    gap: 16px;
+    box-sizing: border-box;
+
+    .videoWrapper {
+      box-sizing: border-box;
+      border: 2px solid rgb(57, 57, 114);
+      flex-grow: 1;
+    }
+
+    .canvas {
+      height: 100%;
+      box-sizing: border-box;
+      border: 2px solid rgb(120, 37, 37);
+    }
+  }
+}

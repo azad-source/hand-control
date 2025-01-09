@@ -1,38 +1,77 @@
-import { useEffect, useRef, useState } from "react";
-import "./App.module.scss";
+import { useCallback, useEffect, useRef, useState } from "react";
+import styles from "./App.module.scss";
 import { getDetector } from "./utils/detector";
 import { Camera } from "./utils/camera";
-import { getIndexFingerTip } from "./helpers/hand.helpers";
-import { HandDetector } from "@tensorflow-models/hand-pose-detection";
+import { getIndexFingerTip, lerp } from "./helpers/hand.helpers";
+import { HandDetector, Keypoint } from "@tensorflow-models/hand-pose-detection";
 
-let camera: Camera | undefined;
 let detector: HandDetector;
-let ctx: CanvasRenderingContext2D | null | undefined;
 
-const canvasWidth = 640;
-const canvasHeight = 480;
+const canvasWidth = 1024;
+const canvasHeight = 640;
 const cursorSize = 50;
-const cursorXmax = canvasWidth - cursorSize;
-const cursorYmax = canvasHeight - cursorSize;
+const cursorXmax = canvasWidth / 2 - cursorSize;
+const cursorXmin = -canvasWidth / 2;
+const cursorYmax = canvasHeight / 2 - cursorSize;
+const cursorYmin = -canvasHeight / 2;
+const scaleFactor = 8; // Чувствительность курсора
+const lerpFactor = 0.2; // Коэффициент плавности курсора
 
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const currentPosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const prevCursorParams = useRef<Keypoint | null>(null);
 
-  const canvas = canvasRef.current;
-  ctx = canvas?.getContext("2d");
+  const [cursorParams, setCursorParams] = useState<Keypoint>();
 
   const [start, setStart] = useState(false);
+
+  const lerpPosition = useCallback((targetX: number, targetY: number) => {
+    currentPosition.current = {
+      x: lerp(currentPosition.current.x, targetX, lerpFactor),
+      y: lerp(currentPosition.current.y, targetY, lerpFactor),
+    };
+    return currentPosition.current;
+  }, []);
+
+  const drawCursor = useCallback((x: number, y: number) => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    clearCanvas();
+    ctx.fillStyle = "green";
+    ctx.fillRect(x, y, cursorSize, cursorSize);
+  }, []);
+
+  const updateCursorParams = useCallback((newParams: Keypoint) => {
+    if (
+      JSON.stringify(prevCursorParams.current) !== JSON.stringify(newParams)
+    ) {
+      prevCursorParams.current = newParams;
+      setCursorParams(newParams);
+    }
+  }, []);
 
   useEffect(() => {
     if (!start) return;
 
     const init = async () => {
-      if (videoRef.current) {
-        camera = await Camera.setupCamera(videoRef.current);
-      }
+      if (!videoRef.current || !canvasRef.current) return;
+
+      const ctx = canvasRef.current.getContext("2d");
+      ctxRef.current = ctx;
+
+      const camera = await Camera.setupCamera(videoRef.current, {
+        x: canvasWidth,
+        y: canvasHeight,
+      });
 
       detector = await getDetector();
+
+      if (ctx) {
+        ctx.translate(canvasWidth / 2, canvasHeight / 2);
+      }
 
       const detectHands = async () => {
         if (camera?.video) {
@@ -43,20 +82,17 @@ function App() {
           const indexFingerTip = getIndexFingerTip(hands || []);
 
           if (indexFingerTip) {
-            if (!ctx) return;
+            updateCursorParams(indexFingerTip);
 
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            const x = (canvasWidth / 2 - indexFingerTip.x) * scaleFactor;
+            const y = (indexFingerTip.y - canvasHeight / 2) * scaleFactor;
 
-            // Рисуем квадрат
-            ctx.fillStyle = "green";
+            const clampedX = Math.min(Math.max(x, cursorXmin), cursorXmax);
+            const clampedY = Math.min(Math.max(y, cursorYmin), cursorYmax);
 
-            const x = canvasWidth - indexFingerTip.x;
-            const y = indexFingerTip.y;
+            const newPos = lerpPosition(clampedX, clampedY);
 
-            const xPos = x < 0 ? 0 : x > cursorXmax ? cursorXmax : x;
-            const yPos = y < 0 ? 0 : y > cursorYmax ? cursorYmax : y;
-
-            ctx.fillRect(xPos, yPos, cursorSize, cursorSize);
+            drawCursor(newPos.x, newPos.y);
           }
         }
 
@@ -69,14 +105,21 @@ function App() {
     init();
 
     return () => {
-      // Очищаем ресурсы
-      if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream)?.getTracks();
-        tracks?.forEach((track) => track.stop());
-      }
-      setStart(false);
+      stopCamera();
+      clearCanvas();
     };
   }, [start]);
+
+  const clearCanvas = () => {
+    if (ctxRef.current) {
+      ctxRef.current.clearRect(
+        -canvasWidth,
+        -canvasHeight,
+        2 * canvasWidth,
+        2 * canvasHeight
+      );
+    }
+  };
 
   const stopCamera = () => {
     const videoElement = videoRef.current;
@@ -89,26 +132,39 @@ function App() {
     setStart(false);
   };
 
+  const stop = () => {
+    stopCamera();
+    clearCanvas();
+    ctxRef.current?.reset();
+  };
+
   return (
-    <div>
-      <button onClick={() => setStart(true)}>Start</button>
-      <button onClick={stopCamera}>Stop</button>
-      <video
-        ref={videoRef}
-        playsInline
-        style={{
-          width: "100%",
-          height: "100%",
-          transform: "scaleX(-1)",
-          display: "none",
-        }}
-      ></video>
-      <canvas
-        ref={canvasRef}
-        width={canvasWidth}
-        height={canvasHeight}
-        style={{ border: "1px solid red" }}
-      />
+    <div className={styles.root}>
+      <div className={styles.nav}>
+        <button onClick={() => setStart(true)}>Start</button>
+        <button onClick={stop}>Stop</button>
+      </div>
+      <div className={styles.content}>
+        <div className={styles.videoWrapper}>
+          <video
+            ref={videoRef}
+            playsInline
+            style={{
+              width: "300px",
+              height: "480px",
+              transform: "scaleX(-1)",
+              // display: "none",
+            }}
+          ></video>
+          <pre>{JSON.stringify(cursorParams, null, 2)}</pre>
+        </div>
+        <canvas
+          ref={canvasRef}
+          width={canvasWidth}
+          height={canvasHeight}
+          className={styles.canvas}
+        />
+      </div>
     </div>
   );
 }

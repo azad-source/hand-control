@@ -12,3 +12,7 @@ export function getIndexFingerTip(hands?: Hand[]): Keypoint | undefined {
     (k) => k.name === IndexFingerPoints.index_finger_tip
   );
 }
+
+export function lerp(start: number, end: number, factor: number) {
+  return start + (end - start) * factor;
+}
