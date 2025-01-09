@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./App.module.scss";
 import { getDetector } from "./utils/detector";
 import { Camera } from "./utils/camera";
-import { getIndexFingerTip, lerp } from "./helpers/hand.helpers";
+import {
+  getIndexFingerTip,
+  isThumbTouchingIndex,
+  lerp,
+} from "./helpers/hand.helpers";
 import { HandDetector, Keypoint } from "@tensorflow-models/hand-pose-detection";
 
 let detector: HandDetector;
@@ -14,8 +18,8 @@ const cursorXmax = canvasWidth / 2 - cursorSize;
 const cursorXmin = -canvasWidth / 2;
 const cursorYmax = canvasHeight / 2 - cursorSize;
 const cursorYmin = -canvasHeight / 2;
-const scaleFactor = 8; // Чувствительность курсора
-const lerpFactor = 0.2; // Коэффициент плавности курсора
+const scaleFactor = 6; // Чувствительность курсора
+const lerpFactor = 0.15; // Коэффициент плавности курсора
 
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -36,11 +40,11 @@ function App() {
     return currentPosition.current;
   }, []);
 
-  const drawCursor = useCallback((x: number, y: number) => {
+  const drawCursor = useCallback((x: number, y: number, color: string) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     clearCanvas();
-    ctx.fillStyle = "green";
+    ctx.fillStyle = color;
     ctx.fillRect(x, y, cursorSize, cursorSize);
   }, []);
 
@@ -91,8 +95,9 @@ function App() {
             const clampedY = Math.min(Math.max(y, cursorYmin), cursorYmax);
 
             const newPos = lerpPosition(clampedX, clampedY);
+            const color = isThumbTouchingIndex(hands) ? "red" : "green";
 
-            drawCursor(newPos.x, newPos.y);
+            drawCursor(newPos.x, newPos.y, color);
           }
         }
 
