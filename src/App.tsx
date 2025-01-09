@@ -8,18 +8,22 @@ import {
   lerp,
 } from "./helpers/hand.helpers";
 import { HandDetector, Keypoint } from "@tensorflow-models/hand-pose-detection";
+import PenIcon from "./assets/pen-svgrepo-com.svg";
 
 let detector: HandDetector;
 
 const canvasWidth = 1024;
 const canvasHeight = 640;
-const cursorSize = 50;
+const cursorSize = 25;
 const cursorXmax = canvasWidth / 2 - cursorSize;
 const cursorXmin = -canvasWidth / 2;
 const cursorYmax = canvasHeight / 2 - cursorSize;
 const cursorYmin = -canvasHeight / 2;
 const scaleFactor = 6; // Чувствительность курсора
 const lerpFactor = 0.15; // Коэффициент плавности курсора
+
+const penImage = new Image();
+penImage.src = PenIcon;
 
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -29,7 +33,6 @@ function App() {
   const prevCursorParams = useRef<Keypoint | null>(null);
 
   const [cursorParams, setCursorParams] = useState<Keypoint>();
-
   const [start, setStart] = useState(false);
 
   const lerpPosition = useCallback((targetX: number, targetY: number) => {
@@ -44,9 +47,31 @@ function App() {
     const ctx = ctxRef.current;
     if (!ctx) return;
     clearCanvas();
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, cursorSize, cursorSize);
+
+    if (penImage.complete) {
+      // Рисуем ручку
+      const penWidth = cursorSize;
+      const penHeight = cursorSize * (penImage.height / penImage.width); // Сохраняем пропорции
+      // penImage.style.color = color;
+      ctx.drawImage(penImage, x, y, penWidth, penHeight);
+      drawPointer(x, y, color);
+    } else {
+      // Если изображение еще не загрузилось, рисуем резервный квадрат
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, cursorSize, cursorSize);
+    }
   }, []);
+
+  const drawPointer = (x: number, y: number, color: string) => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const radius = 3; // Радиус круга
+
+    ctx.beginPath();
+    ctx.arc(x, y + cursorSize, radius, 0, 2 * Math.PI); // Рисуем круг
+    ctx.fillStyle = color; // Задаем цвет
+    ctx.fill(); // Заполняем круг
+  };
 
   const updateCursorParams = useCallback((newParams: Keypoint) => {
     if (
