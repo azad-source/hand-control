@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import styles from "./HandleClick.module.scss";
+import styles from "./HandControl.module.scss";
 import { getDetector } from "./detector";
 import { Camera } from "./camera";
 import { getIndexFingerTip, isThumbTouchingIndex, lerp } from "./helpers";
@@ -25,7 +25,7 @@ interface IProps {
   devMode?: boolean;
 }
 
-function HandleClick({ devMode = false }: IProps) {
+function HandControl({ devMode = false }: IProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -258,4 +258,4 @@ function HandleClick({ devMode = false }: IProps) {
   );
 }
 
-export default HandleClick;
+export default HandControl;

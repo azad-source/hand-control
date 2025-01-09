@@ -1,10 +1,10 @@
-import HandleClick from "./components/HandleClick/HandleClick";
+import HandControl from "./components/HandControl/HandControl";
 import styles from "./App.module.scss";
 
 function App() {
   return (
     <div className={styles.root}>
-      <HandleClick devMode={false} />
+      <HandControl devMode={true} />
     </div>
   );
 }
